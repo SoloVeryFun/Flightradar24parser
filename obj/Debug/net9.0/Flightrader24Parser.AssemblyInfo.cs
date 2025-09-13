@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("Flightrader24Parser")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+c5f6ccd0784aa7ca709fe3e0498fb916e7ef2105")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+86d6b145e0f611dc547b9d181f7ed40b393b3c6c")]
 [assembly: System.Reflection.AssemblyProductAttribute("Flightrader24Parser")]
 [assembly: System.Reflection.AssemblyTitleAttribute("Flightrader24Parser")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

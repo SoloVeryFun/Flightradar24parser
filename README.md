@@ -6,9 +6,15 @@ A C# console application built with Selenium that extracts passenger flight data
 
 This version of the parser:
 
-- Retrieves **arriving passenger flights** at Zvartnots Airport.
-- Filters flights scheduled between **10:00 PM and 11:00 PM**.
-- Covers a **2-day period**: **today** and **tomorrow**.
+Works via direct server requests (much faster than previous Selenium-based parsing).
+
+Displays the flight number and time.
+
+Is currently configured for departures at Zvartnots International Airport (EVN, Yerevan).
+
+The airport can only be changed manually in the code (LN122, chars 86–89).
+
+Note: Results may slightly differ from Flightradar24.com due to API structure differences.
 
 ## How to Run
 
@@ -22,20 +28,16 @@ To run:
 The application will launch in a console window and display matching flight information.
 
 ⚠ Ensure you have an internet connection while running — live data is pulled from https://www.flightradar24.com.
-
-
 ## Technologies Used
 
 - C# (.NET 9)
-- Selenium WebDriver
-- ChromeDriver (included via NuGet)
+- HTTP requests to Flightradar24 APIs
+- Newtonsoft.Json (included via NuGet)
 
 ## Planned Features
 
-The following improvements are planned for future versions:
-
-- Customizable time ranges
-- Airport selection support
+Customizable time ranges
+Airport selection support
 
 ## License
 

@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "D:\\C# Projects\\Flightrader24Parser\\Flightrader24Parser.csproj": {}
+    "D:\\C# Projects\\Flightradar24parser\\Flightrader24Parser.csproj": {}
   },
   "projects": {
-    "D:\\C# Projects\\Flightrader24Parser\\Flightrader24Parser.csproj": {
+    "D:\\C# Projects\\Flightradar24parser\\Flightrader24Parser.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "D:\\C# Projects\\Flightrader24Parser\\Flightrader24Parser.csproj",
+        "projectUniqueName": "D:\\C# Projects\\Flightradar24parser\\Flightrader24Parser.csproj",
         "projectName": "Flightrader24Parser",
-        "projectPath": "D:\\C# Projects\\Flightrader24Parser\\Flightrader24Parser.csproj",
+        "projectPath": "D:\\C# Projects\\Flightradar24parser\\Flightrader24Parser.csproj",
         "packagesPath": "C:\\Users\\hoffnung\\.nuget\\packages\\",
-        "outputPath": "D:\\C# Projects\\Flightrader24Parser\\obj\\",
+        "outputPath": "D:\\C# Projects\\Flightradar24parser\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
@@ -50,13 +50,9 @@
         "net9.0": {
           "targetAlias": "net9.0",
           "dependencies": {
-            "Microsoft.Playwright.NUnit": {
+            "Newtonsoft.Json": {
               "target": "Package",
-              "version": "[1.54.0, )"
-            },
-            "Selenium.WebDriver": {
-              "target": "Package",
-              "version": "[4.35.0, )"
+              "version": "[13.0.3, )"
             }
           },
           "imports": [

@@ -1,165 +1,215 @@
-﻿using OpenQA.Selenium;
-using OpenQA.Selenium.Chrome;
-using OpenQA.Selenium.Support.UI;
+﻿using FlightsParsing;
+using Json_structure;
+using NewException;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using System;
-using System.Collections.ObjectModel;
-using System.Diagnostics;
+using System.Net;
+using System.Net.Http;
 using System.Threading.Tasks;
-using System.Xml.Linq;
 
 class Program
 {
-    static void Main(string[] args)
+    static async Task Main(string[] args)
     {
-        var options = new ChromeOptions();
-        
-        //Headless mode:
-        //options.AddArgument("--window-size=1200,800");
-        options.AddArgument("--headless");
+        await GetAllFlight();
 
-        //Disable cmd logs
-        options.AddArgument("--log-level=3"); // Только ошибки
-        options.AddArgument("--disable-logging");
-        options.AddArgument("--silent");
-        options.AddArgument("--disable-gpu");
-        options.AddArgument("--disable-speech-api");
-        options.AddArgument("--disable-notifications");
-        options.AddArgument("--disable-gcm-registration");
-
-        IWebDriver driver = new ChromeDriver(options);
-
-        try
-        {
-            driver.Navigate().GoToUrl("https://www.flightradar24.com/airport/evn/arrivals");
-            //driver.Navigate().GoToUrl("https://www.example.com/");
-
-        }
-        catch (WebDriverException)
-        {
-            Console.WriteLine("Error with response from site, try to run the application later");
-            Console.WriteLine("Press any key to exit...");
-            Console.ReadKey();
-
-            driver.Quit();
-        }
-
-
-        string title = driver.Title;
-        Console.WriteLine($"Page Title: {title}");
-
-
-        var allflights = GetAllFlights(driver);
-        var requiredflights = requiredFlights(allflights);
-        var flightinformation = flightInformation(requiredflights);
-
-        print(flightinformation);
-
-        Console.WriteLine("Press any key to exit...");
+        Console.Write("Press any key to exit...");
         Console.ReadKey();
-
-        driver.Quit();
-        }
-
-    //Getting flight information
-    static List<string> flightInformation(List<IWebElement> requiredflights)
-    {
-        List<string> flightinfo = new List<string>();
-
-        foreach (var flight in requiredflights)
-        {
-            IWebElement today = flight.FindElement(By.XPath("ancestor::div[9]"));
-            IWebElement parentSection = flight.FindElement(By.XPath("ancestor::div[5]"));
-
-            string date = today.FindElement(By.CssSelector("h3.inline-flex")).Text;
-            string cityName = parentSection.FindElement(By.CssSelector("span.mr-px")).Text;
-
-            flightinfo.Add($"{date} : {cityName}");
-        }
-
-        return flightinfo;
     }
 
-    //Filtering flights by time, NOT FINISHED
-    static List<IWebElement> requiredFlights(List<IWebElement> allflights)
+    private static readonly HttpClient httpClient = new HttpClient();
+
+    static async Task GetAllFlight()
     {
-        int hour;
-        //int minute;
-        string ampm;
-        List<IWebElement> requiredflights = new List<IWebElement>();
+        var allFlights = await GetAllForwardFlight(1);
+        Console.WriteLine($"Total Forward Flights Retrieved: {allFlights.Count}");
 
-        foreach (IWebElement flight in allflights)
-        {
-            var spans = flight.FindElements(By.TagName("span"));
-
-            hour = Convert.ToInt32(spans[0].Text);
-            ampm = spans[4].Text;
-
-            if ((hour >= 10 && hour < 11) && ampm == "PM") requiredflights.Add(flight);
-            
-        }
-
-        return requiredflights;
-    }
-
-    //get all scheduled flights for 2 days
-    static List<IWebElement> GetAllFlights(IWebDriver driver)
-    {
-        WebDriverWait waitMainDiv = new WebDriverWait(driver, TimeSpan.FromSeconds(100));
-
-        List<IWebElement> allflights = new List<IWebElement>();
-
+        var simpleFlight = allFlights[0];
         try
         {
-            var mainDiv = waitMainDiv.Until(driver => driver.FindElements(By.CssSelector("div.font-semibold.text-gray-1300")).Count > 0);
+            FlightInformation? flightInformation = null;
 
-            if (mainDiv)
+            int number = 0;
+            Console.WriteLine($"N::Fl.Num===TimeSources Name::: flight Time::::::UTC");
+            foreach (var flights in allFlights)
             {
-                var elements = driver.FindElements(By.CssSelector("div.font-semibold.text-gray-1300"));
-                allflights = elements.ToList();
-            }
-            else
-            {
-                Console.WriteLine("Error with response from site, try to run the application later");
-                
-                Console.WriteLine("Press any key to exit...");
-                Console.ReadKey();
+                try
+                {
+                    number++;
 
-                driver.Quit();
+                    flightInformation = flights.ToObject<FlightInformation>() ?? throw new FlighNumberIsMissingException();
+
+                    string flightNumber = flightInformation?.Flight?.Identification?.Number?.identificationCode ?? "Missing";
+
+                    var Times = flightInformation?.Flight?.Time;
+
+                    var source = new (string Time, string? Value)[]
+                    {
+                        ("Real", Times?.Real?.time),
+                        ("Estimated", Times?.Estimated?.time),
+                        ("Scheduled", Times?.Scheduled?.time)
+                    };
+
+                    var timeSources = source.FirstOrDefault(s => s.Value != null);
+                    if (timeSources.Value == null)
+                        timeSources = ("Unknown", "0");
+
+                    string UTC = flightInformation?.Flight?.Airport?.Origin?.TimeZone?.UTC ?? "0"; //Time is UTC+N
+
+                    int unixTimeInUtcPlusN = int.Parse(timeSources.Value);
+
+                    if (int.TryParse(UTC, out int utc)){}
+                    else
+                    {
+                        utc = UTC switch
+                        {
+                            "WET" => 0,
+                            "WEST" or "CET" => 1,
+                            "CEST" or "EET" => 2,
+                            "EEST" => 3,
+                            "EDT" => -4,
+                            "EST" => -5,
+                            "AST" => -4,
+                            "CST" => -6,
+                            "MST" => -7,
+                            "PST" => -8,
+                            "AKST" => -9,
+                            "HAST" => -10,
+                            "SST" => -11,
+                            "ChST" => 10,
+                            "WAKT" => 12,
+                            _ => throw new ArgumentException($"Unknown timezone code: {UTC}")
+                        };
+                    }
+
+                    if (timeSources.Time != "0")
+                    {
+                        DateTime flightTime = DateTimeOffset.FromUnixTimeSeconds(unixTimeInUtcPlusN).ToOffset(TimeSpan.FromHours(utc)).DateTime;
+                        Console.WriteLine($"{number}::{flightNumber}====={timeSources.Time}:::{flightTime}::::{UTC} UTC");
+                    }
+                    else Console.WriteLine($"{number}::{flightNumber}====={timeSources.Time}::::{UTC} UTC");
+                }
+                catch (FlighNumberIsMissingException ex)
+                {
+                    Console.WriteLine(ex.Message);
+                }
+                catch (Exception)
+                {
+                    throw;
+                }
             }
         }
-        catch (WebDriverTimeoutException)
+        catch(Exception ex)
         {
-            Console.WriteLine("Error with response from site, try to run the application later");
-
-            Console.WriteLine("Press any key to exit...");
-            Console.ReadKey();
-            
-            driver.Quit();
+            Console.WriteLine(ex.Message);
         }
-        return allflights;
     }
 
-    static void print(List<IWebElement> allflights)
+    static async Task<List<JObject>> GetAllForwardFlight(int startPage)
     {
-        if (allflights.Count > 0)
-        {
-            foreach (var flight in allflights)
-            {
-                Console.WriteLine(flight.Text);
-            }
-        }
-        else Console.WriteLine("No flights found.");
-    }
+        var allForwardDepartures = new List<JObject>();
+        var allBackwardDepartures = new List<JObject>();
 
-    static void print(List<string> texts)
-    {
-        if (texts.Count > 0)
+        int current = startPage;
+        int total = 1;
+        bool positivePhase = true;
+        long timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+
+        while (true)
         {
-            foreach (var text in texts)
+            int pageForUrl = positivePhase ? current : -current;
+
+            string url = $"https://api.flightradar24.com/common/v1/airport.json?code=evn&plugin[]=&plugin-setting[schedule][mode]=departures&plugin-setting[schedule][timestamp]={timestamp}&page={pageForUrl}&limit=100&fleet=&token=";
+
+            using (HttpClient client = new HttpClient())
             {
-                Console.WriteLine(text);
+                try
+                {
+                    HttpResponseMessage response = await client.GetAsync(url);
+
+                    if (response.StatusCode == (HttpStatusCode)429)
+                    {
+                        var retryAfter = response.Headers.RetryAfter?.Delta ?? TimeSpan.FromSeconds(60);
+
+                        double secondsToWait = retryAfter.TotalSeconds;
+
+                        Console.ForegroundColor = ConsoleColor.DarkCyan;
+
+                        Console.WriteLine($"Parsing continues please wait, It will take {secondsToWait} seconds");
+                        for (double i = secondsToWait, seconds = 0; i > 0; i--)
+                        {
+                            Console.Write($"\r{seconds} seconds out of {secondsToWait} have passed");
+                            await Task.Delay(1000);
+                            seconds++;
+                        }
+                        Console.WriteLine();
+                        Console.ResetColor();
+
+                        continue;
+                    }
+
+                    string json = await response.Content.ReadAsStringAsync();
+
+                    json_structure json_structure = JsonConvert.DeserializeObject<json_structure>(json) ?? throw new Exception(("Failed to deserialize JSON."));
+
+                    int curPage = json_structure?.Result?.Response?.Airport?.PluginData?.Schedule?.Departures?.Page?.current ?? 0;
+                    int totPage = json_structure?.Result?.Response?.Airport?.PluginData?.Schedule?.Departures?.Page?.total ?? 0;
+
+                    total = totPage;
+
+                    var departuresData = json_structure?.Result?.Response?.Airport?.PluginData?.Schedule?.Departures?.data ?? new List<JObject>();
+
+                    if (departuresData.Count <= 0)
+                    {
+                        Console.WriteLine("Departures data is missing in the JSON.");
+                    }
+                    else
+                    {
+                        Console.WriteLine($"Page {curPage} of {totPage} — Departures: {departuresData.Count}");
+                        if (positivePhase)
+                        {
+                            //departuresData.Reverse();
+                            allForwardDepartures.AddRange(departuresData);
+                        }
+                        else
+                        {
+                            allBackwardDepartures.AddRange(departuresData);
+                        }
+                    }
+                    if (positivePhase)
+                    {
+                        if (current >= total)
+                        {
+                            positivePhase = false;
+                            current = 1;
+                        }
+                        else
+                        {
+                            current++;
+                        }
+                    }
+                    else
+                    {
+                        if(current >= total)
+                        {
+                            break;
+                        }
+                        else
+                        {
+                            current++;
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[ERROR] {ex.Message}");
+                    break;
+                }
             }
         }
-        else Console.WriteLine("Information not founded");
+
+        allForwardDepartures.Reverse();
+        return allForwardDepartures.Concat(allBackwardDepartures).ToList();
     }
 }
